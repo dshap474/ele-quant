@@ -1,0 +1,21 @@
+[tool.poetry]
+name = "ele-quant"
+version = "0.1.0"
+description = "Utilities and scripts for the Elements of Quantitative Investing book"
+authors = ["Unknown <unknown@example.com>"]
+packages = [{include = "ele_quant", from = "src"}]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+numpy = "*"
+scipy = "*"
+pandas = "*"
+matplotlib = "*"
+statsmodels = "*"
+
+[tool.poetry.dev-dependencies]
+pytest = "*"
+
+[build-system]
+requires = ["poetry-core>=1.0"]
+build-backend = "poetry.core.masonry.api"
