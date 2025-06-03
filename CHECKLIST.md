@@ -8,7 +8,7 @@
 - [x] Task B.1: Define Enumerations for Financial Concepts
 - [x] Task B.2: Define a Simple Class for Market Participants (Optional, for structure)
 - [x] Task B.3: Update `__init__.py` files
-- [ ] Create example script `examples/chapter_1_concepts_example.py`
+- [x] Create example script `examples/chapter_1_concepts_example.py`
 - [x] Create unit tests in `tests/test_common_concepts.py`
 
 ### Chapter 2: Univariate Returns
