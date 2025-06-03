@@ -1,7 +1,7 @@
 import unittest
 import pandas as pd
 import numpy as np
-from ele_quant.performance_metrics import (
+from quant_elements_lib.performance_metrics import (
     calculate_expected_return,
     calculate_volatility,
     calculate_sharpe_ratio,

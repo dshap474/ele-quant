@@ -2,7 +2,7 @@ import unittest
 import numpy as np
 import pandas as pd # Though not directly used here, common in other tests
 
-from ele_quant.utils.kalman_filter import KalmanFilter
+from quant_elements_lib.utils.kalman_filter import KalmanFilter
 
 class TestKalmanFilter(unittest.TestCase):
 

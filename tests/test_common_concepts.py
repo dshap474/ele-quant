@@ -1,4 +1,4 @@
-from ele_quant.common_concepts import (
+from quant_elements_lib.common_concepts import (
     SecurityType,
     ExchangeMode,
     MarketParticipantSide,

@@ -4,21 +4,21 @@ import pandas as pd
 from pandas.testing import assert_series_equal
 
 # Import functions to be tested
-from ele_quant.volatility_models.garch import (
+from quant_elements_lib.volatility_models.garch import (
     garch_1_1_conditional_variance,
     estimate_garch_1_1_parameters,
     # garch_1_1_log_likelihood # Not directly tested but used by estimate
 )
-from ele_quant.volatility_models.realized_volatility import (
+from quant_elements_lib.volatility_models.realized_volatility import (
     calculate_realized_variance_from_sum_sq_returns,
     estimate_variance_mle_diffusion,
 )
-from ele_quant.volatility_models.state_space_vol import (
+from quant_elements_lib.volatility_models.state_space_vol import (
     ewma_variance_forecast,
     muth_model_variance_estimation,
     harvey_shephard_volatility_estimation,
 )
-from ele_quant.utils.kalman_filter import KalmanFilter # For state-space models
+from quant_elements_lib.utils.kalman_filter import KalmanFilter # For state-space models
 
 class TestGARCH(unittest.TestCase):
 

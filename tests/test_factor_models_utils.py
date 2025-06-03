@@ -120,5 +120,61 @@ class TestFactorModelsUtils(unittest.TestCase):
         with self.assertRaises(ValueError):
             decompose_alpha(alpha_misaligned, self.B_loadings_k1)
 
+# New tests for choose_num_factors_threshold
+from quant_elements_lib.factor_models.utils import choose_num_factors_threshold
+
+class TestChooseNumFactors(unittest.TestCase):
+    def test_choose_num_factors_threshold(self):
+        # Example from textbook (p.288): N=500, T=1000. gamma = 0.5. Threshold = 1 + sqrt(0.5) ~ 1.707
+        N1, T1 = 500, 1000
+        eigenvalues1 = np.array([3.0, 2.5, 1.8, 1.5, 1.0])
+        self.assertEqual(choose_num_factors_threshold(eigenvalues1, N1, T1), 3)
+
+        # Test case 2: Higher gamma
+        N2, T2 = 80, 100 # gamma = 0.8, threshold = 1 + sqrt(0.8) ~ 1.894
+        eigenvalues2 = np.array([5.0, 3.0, 1.9, 1.8, 0.5])
+        self.assertEqual(choose_num_factors_threshold(eigenvalues2, N2, T2), 3)
+
+        # Test case 3: Lower gamma
+        N3, T3 = 20, 100 # gamma = 0.2, threshold = 1 + sqrt(0.2) ~ 1.447
+        eigenvalues3 = np.array([5.0, 3.0, 1.5, 1.2, 0.5])
+        self.assertEqual(choose_num_factors_threshold(eigenvalues3, N3, T3), 3)
+
+        # Test case 4: All factors significant
+        eigenvalues4 = np.array([3.0, 2.5, 2.0])
+        # Using N3, T3: threshold ~ 1.447
+        self.assertEqual(choose_num_factors_threshold(eigenvalues4, N3, T3), 3)
+
+        # Test case 5: No factors significant
+        eigenvalues5 = np.array([1.3, 1.2, 1.1])
+        # Using N3, T3: threshold ~ 1.447
+        self.assertEqual(choose_num_factors_threshold(eigenvalues5, N3, T3), 0)
+
+        # Test case 6: Empty eigenvalues
+        eigenvalues6 = np.array([])
+        self.assertEqual(choose_num_factors_threshold(eigenvalues6, N3, T3), 0)
+
+        # Test case 7: N_assets = 0
+        self.assertEqual(choose_num_factors_threshold(eigenvalues1, 0, T1), 0)
+
+        # Test case 8: T_observations = 0 (should raise error as per implementation in choose_num_factors_threshold)
+        with self.assertRaises(ValueError): # Check for T_observations <= 0
+            choose_num_factors_threshold(eigenvalues1, N1, 0)
+        with self.assertRaises(ValueError):
+            choose_num_factors_threshold(eigenvalues1, N1, -10)
+
+        # Test case 9: N_assets < 0 (should raise error)
+        with self.assertRaises(ValueError):
+            choose_num_factors_threshold(eigenvalues1, -5, T1)
+
+        # Test case 10: Eigenvalues not 1D array (should raise error)
+        with self.assertRaises(ValueError):
+            choose_num_factors_threshold(np.array([[1,2],[3,4]]), N1, T1)
+
+        # Test case 11: Eigenvalues is None (should raise error due to not being ndarray)
+        with self.assertRaises(ValueError):
+            choose_num_factors_threshold(None, N1, T1)
+
+
 if __name__ == '__main__':
     unittest.main()

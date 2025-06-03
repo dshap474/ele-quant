@@ -1,9 +1,9 @@
 import unittest
 import pandas as pd
 import numpy as np
-from ele_quant.utils import winsorize_series # Assuming winsorize_series is in utils.preprocessing
+from quant_elements_lib.utils import winsorize_series # Assuming winsorize_series is in utils.preprocessing
                                           # and utils/__init__.py exports it.
-                                          # Actual import path might be ele_quant.utils.preprocessing.winsorize_series
+                                          # Actual import path might be quant_elements_lib.utils.preprocessing.winsorize_series
                                           # For now, using ele_quant.utils.winsorize_series based on previous __init__ update.
 
 class TestWinsorization(unittest.TestCase):
