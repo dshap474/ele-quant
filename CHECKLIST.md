@@ -67,11 +67,11 @@
 - [ ] Create unit tests in `tests/test_factor_models_statistical.py`, `tests/test_utils_matrix_ops.py`
 
 ### Chapter 8: Evaluating Excess Returns
-- [ ] Task B.1: Implement Backtesting Protocol Setups
-- [ ] Task B.2: Implement Rademacher Complexity and RAS Bounds
-- [ ] Task B.3: Update `__init__.py` files
-- [ ] Create example script `examples/chapter_8_evaluating_excess_returns_example.py`
-- [ ] Create unit tests in `tests/test_backtesting.py`
+- [x] Task B.1: Implement Backtesting Protocol Setups
+- [x] Task B.2: Implement Rademacher Complexity and RAS Bounds
+- [x] Task B.3: Update `__init__.py` files
+- [x] Create example script `examples/chapter_8_evaluating_excess_returns_example.py`
+- [x] Create unit tests in `tests/test_backtesting.py`
 
 ### Chapter 9: Portfolio Management: The Basics
 - [ ] Task B.1: Implement MVO Solvers
