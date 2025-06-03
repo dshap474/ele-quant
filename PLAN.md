@@ -363,7 +363,7 @@
 -   Choosing appropriate initial parameters/guesses for iterative models (GARCH, Kalman) is important.
 -   Ensure all Pandas operations correctly handle and align time series indices.
 
-### Chapter 3: Interlude: What Is Performance?
+**[COMPLETED]** ### Chapter 3: Interlude: What Is Performance?
 
 #### A. Conceptual Understanding & Mapping
 
@@ -2128,6 +2128,161 @@
 -   The "errors" in attribution (Section 14.2) are due to `f̂_t` being an *estimate* of true `f_t`. The variance formulas for these errors are key.
 -   Maximal attribution involves matrix partitioning and inversion; ensure this is handled robustly.
 -   The selection/sizing decomposition has several terms; ensure each is implemented as per the book's definitions. The IR formula involving these terms needs careful derivation and implementation to match Eq. 14.11. The current plan focuses on calculating the components.
+
+### Chapter 4: Linear Models of Returns
+
+#### A. Conceptual Understanding & Mapping
+
+1.  **Key concepts to be implemented from this chapter:**
+    *   Factor model equation: `r_it = α_i + B_i' f_t + ε_it`.
+    *   Calculation of total asset covariance matrix from a factor model: `Ω_r = B Ω_f B' + Ω_ε`.
+    *   Alpha decomposition: Spanned alpha (`Bλ`) and Orthogonal alpha (`α_⊥`).
+    *   Factor model transformations:
+        *   Rotations (`B̃ = BC⁻¹`, `f̃ = Cf`).
+        *   Projections (reducing the number of factors).
+        *   Push-outs (adding new factors).
+    *   Applications (conceptual understanding to guide future implementations):
+        *   Performance attribution (decomposition of PnL).
+        *   Risk management (forecast and decomposition of variance).
+        *   Portfolio management (input to MVO).
+        *   Alpha research.
+    *   Types of factor models (Characteristic, Statistical, Macroeconomic - conceptual definitions here, implementation in later chapters).
+    *   Linear Regression basics (Appendix 4.7.1) - as a utility.
+    *   Frisch-Waugh-Lovell Theorem (Appendix 4.7.3) - conceptual, informs staged regression.
+    *   Singular Value Decomposition (SVD) (Appendix 4.7.4) - as a utility.
+
+2.  **Relevant equations/algorithms from the textbook:**
+    *   Factor model: `r_it = α_i + B_i' f_t + ε_it` (p. 118).
+    *   Asset covariance: `Ω_r = B Ω_f B' + Ω_ε` (Eq. 4.1, p. 119).
+    *   Alpha decomposition: `α = Bλ + α_⊥` (p. 126).
+    *   Sharpe Ratio of orthogonal alpha strategy (Eq. 4.2, p. 128).
+    *   Rotations: `B̃ = BC⁻¹`, `f̃ = Cf`, `Ω̃_f = C Ω_f C'` (p. 129).
+    *   SVD: `A = U Σ Vᵀ` (Eq. 4.23, p. 164).
+    *   OLS solution: `β̂ = (X'X)⁻¹X'Y` (p. 156).
+    *   WLS solution: `β̂ = (X'Ω_ε⁻¹X)⁻¹X'Ω_ε⁻¹Y` (Eq. 4.14, p. 158).
+    *   Performance attribution PnL decomposition (p. 142).
+    *   Variance decomposition (p. 143).
+
+3.  **Mapping to library modules/classes:**
+    *   The `FactorModelBase` class in `quant_elements_lib/core/factor_model_base.py` will be central. We'll add more methods to it.
+    *   Specific factor model types (Characteristic, Statistical) will be subclasses in `quant_elements_lib/factor_models/`.
+    *   Transformations: Methods within `FactorModelBase` or standalone functions in `quant_elements_lib/factor_models/transformations.py`.
+    *   Alpha decomposition: A function in `quant_elements_lib/factor_models/utils.py` or `quant_elements_lib/returns_analysis/utils.py`.
+    *   Linear regression utilities (OLS, WLS): `quant_elements_lib/utils/regression.py`.
+    *   SVD utility: Could be part of `quant_elements_lib/utils/linalg.py` or just use `numpy.linalg.svd`.
+
+#### B. Core Logic Implementation (AI Tasks)
+
+1.  **Task B.1: Enhance `FactorModelBase` Class**
+    *   **File:** `quant_elements_lib/core/factor_model_base.py`
+    *   **Core logic:**
+        *   Ensure attributes `alpha` (pd.Series, N x 1), `B_loadings` (pd.DataFrame, N x K), `factor_covariance` (pd.DataFrame, K x K, Ω_f), `idiosyncratic_covariance` (pd.DataFrame or pd.Series, N x N or N x 1, Ω_ε) are clearly defined (as `Optional` initially).
+        *   Implement the method `calculate_total_asset_covariance_matrix(self) -> Optional[pd.DataFrame]` (already sketched, needs robust implementation of Eq. 4.1).
+        *   Add a method `predict_systematic_returns(self, factor_returns: pd.DataFrame) -> Optional[pd.DataFrame]`: Calculates `B f_t`. `factor_returns` is T x K. Output is T x N.
+        *   Add a method `decompose_total_returns(self, total_returns: pd.DataFrame, factor_returns: pd.DataFrame) -> Optional[Tuple[pd.DataFrame, pd.DataFrame]]`: Given total asset returns and factor returns, calculates the systematic component (`B f_t`) and estimates idiosyncratic returns (`ε_it = r_it - α_i - B_i' f_t`). Assumes `alpha` and `B_loadings` are fitted.
+    *   **Specific instructions for AI:** "Enhance the `FactorModelBase` class in `core/factor_model_base.py`.
+        *   Refine the `calculate_total_asset_covariance_matrix` method to robustly handle cases where `idiosyncratic_covariance` is a Pandas Series (diagonal) or a full DataFrame, ensuring correct matrix algebra for `B Ω_f B' + Ω_ε`.
+        *   Implement `predict_systematic_returns(self, factor_returns: pd.DataFrame)`.
+        *   Implement `decompose_total_returns(self, total_returns: pd.DataFrame, factor_returns: pd.DataFrame)`. This method should use the model's `alpha` and `B_loadings`."
+
+2.  **Task B.2: Implement Alpha Decomposition**
+    *   **File:** `quant_elements_lib/factor_models/utils.py` (new file)
+    *   **Core logic:**
+        *   `decompose_alpha(alpha_total: pd.Series, B_loadings: pd.DataFrame) -> Tuple[pd.Series, pd.Series, pd.Series]`:
+            *   Input: `alpha_total` (N x 1), `B_loadings` (N x K).
+            *   Calculates `lambda_spanned = (B'B)⁻¹B'α_total` (or using pseudo-inverse if B is not full column rank).
+            *   Calculates `alpha_spanned = B_loadings @ lambda_spanned`.
+            *   Calculates `alpha_orthogonal = alpha_total - alpha_spanned`.
+            *   Returns `alpha_spanned`, `alpha_orthogonal`, `lambda_spanned`.
+    *   **Specific instructions for AI:** "Create `utils.py` in a new submodule `quant_elements_lib/factor_models/`. Implement the `decompose_alpha` function. Use `numpy.linalg.pinv` for the pseudo-inverse to handle potential rank deficiencies in `B_loadings` when calculating `lambda_spanned`."
+
+3.  **Task B.3: Implement Factor Model Transformations**
+    *   **File:** `quant_elements_lib/factor_models/transformations.py` (new file)
+    *   **Core logic:**
+        *   `rotate_factor_model(model: FactorModelBase, C_rotation_matrix: pd.DataFrame) -> FactorModelBase`:
+            *   Takes an instance of `FactorModelBase` and a K x K rotation matrix `C`.
+            *   Creates a *new* `FactorModelBase` instance (or a copy) with transformed `B_loadings = model.B_loadings @ np.linalg.inv(C_rotation_matrix.values)`, `transformed_factor_covariance = C_rotation_matrix.values @ model.factor_covariance.values @ C_rotation_matrix.values.T`.
+            *   Transformed factor returns (if available in the model) would be `model.factor_returns @ C_rotation_matrix.values.T`.
+            *   `alpha` and `idiosyncratic_covariance` remain unchanged.
+        *   `project_factor_model_to_subset(model: FactorModelBase, factors_to_keep: List[str]) -> FactorModelBase`: (Simpler projection: just select columns/rows).
+            *   Creates a new model keeping only the specified factors from `B_loadings` and `factor_covariance`.
+        *   *(Architect note: More complex projections (Section 4.4.2) and push-outs (Section 4.4.3) are advanced and can be deferred or simplified for now. The rotation is key.)*
+    *   **Specific instructions for AI:** "Create `transformations.py` in `quant_elements_lib/factor_models/`. Implement `rotate_factor_model`. It should return a new instance of a factor model with transformed components. For now, assume the input `model` has its `B_loadings` and `factor_covariance` attributes populated. Also implement a simpler `project_factor_model_to_subset` that selects a subset of existing factors."
+
+4.  **Task B.4: Implement Basic Linear Regression Utilities (Appendix 4.7.1)**
+    *   **File:** `quant_elements_lib/utils/regression.py` (new file)
+    *   **Core logic:**
+        *   `ordinary_least_squares(Y: pd.Series, X: pd.DataFrame, add_intercept: bool = True) -> Tuple[pd.Series, pd.Series]`:
+            *   `Y` is N x 1 (dependent), `X` is N x P (predictors).
+            *   If `add_intercept`, adds a constant column to `X`.
+            *   Returns `beta_hat` (coefficients, (P+1) x 1) and `residuals` (N x 1).
+            *   Use `np.linalg.lstsq` or the direct formula `(X'X)⁻¹X'Y`.
+        *   `weighted_least_squares(Y: pd.Series, X: pd.DataFrame, weights_Omega_epsilon_inv_diag: pd.Series, add_intercept: bool = True) -> Tuple[pd.Series, pd.Series]`:
+            *   `weights_Omega_epsilon_inv_diag` is N x 1, diagonal of `Ω_ε⁻¹`.
+            *   Transforms Y and X by `Ω_ε⁻¹/²` (i.e., `1/sqrt(diag_weights)`) then calls OLS, or use direct WLS formula `(X'Ω_ε⁻¹X)⁻¹X'Ω_ε⁻¹Y`.
+            *   Returns `beta_hat` and `residuals`.
+    *   **Specific instructions for AI:** "Create `regression.py` in `quant_elements_lib/utils/`. Implement `ordinary_least_squares` and `weighted_least_squares`. For OLS, prefer `np.linalg.lstsq` for numerical stability over direct matrix inversion. For WLS, implement the transformation approach or the direct WLS formula carefully."
+
+5.  **Task B.5: Update `__init__.py` files**
+    *   For `quant_elements_lib/factor_models/__init__.py`, `quant_elements_lib/utils/__init__.py`, and the main `quant_elements_lib/__init__.py` to expose new modules and functions.
+    *   **Specific instructions for AI:** "Update the relevant `__init__.py` files to make the new modules (`factor_models.utils`, `factor_models.transformations`, `utils.regression`) and their key functions/classes importable."
+
+#### C. `yfinance` Integration & Example Script
+
+1.  **Identify suitable `yfinance` data:**
+    *   Daily historical closing prices for a small universe of diverse stocks (e.g., 5-10 stocks like 'AAPL', 'MSFT', 'JNJ', 'XOM', 'SPY') for a few years.
+    *   For a simple "factor", we could use the returns of 'SPY' as a market factor.
+
+2.  **Outline an example script (`examples/chapter_4_linear_models_example.py`):**
+    *   **Data fetching:** Download prices for the selected stocks and 'SPY'.
+    *   **Preprocessing:** Calculate daily log returns for all.
+    *   **Calling implemented library functions:**
+        *   **Simulate a simple factor model:**
+            *   Use OLS from `utils.regression` to regress each stock's returns against 'SPY' returns (our market factor `f_t`). This gives `B_i` (beta) and `α_i` (intercept) for each stock.
+            *   Construct a `B_loadings` DataFrame (N x 1) and an `alpha` Series.
+            *   Assume a simple `factor_covariance` (1x1, variance of SPY returns) and diagonal `idiosyncratic_covariance` (variances of OLS residuals).
+            *   Instantiate `FactorModelBase` (or a simple concrete subclass if we make one for this example) with these estimated parameters.
+        *   Use the model's `calculate_total_asset_covariance_matrix()` and print a snippet.
+        *   Demonstrate `decompose_alpha` using the estimated alphas and B_loadings.
+        *   Demonstrate `rotate_factor_model` with a simple 1x1 rotation matrix (e.g., `C=[[2]]`) and show that the total covariance doesn't change fundamentally (though factor variance and loadings will).
+    *   **Expected output/visualization:**
+        *   Print estimated alpha, B_loadings, factor_covariance, idiosyncratic_covariance.
+        *   Print the calculated total asset covariance matrix.
+        *   Print spanned and orthogonal alpha components.
+        *   Print components of the rotated model.
+    *   **Specific instructions for AI (for later):** "Create `chapter_4_linear_models_example.py`.
+        1. Fetch daily prices for a few stocks and an index (e.g., 'SPY') using `yfinance`. Calculate log returns.
+        2. For each stock, use the `ordinary_least_squares` function to regress its returns on the index returns (this simulates estimating a single-factor model's alpha and beta).
+        3. Collect these alphas and betas into appropriate Pandas Series/DataFrames. Estimate factor variance (variance of index returns) and idiosyncratic variances (variance of residuals).
+        4. Create an instance of a simple concrete class derived from `FactorModelBase` (you might need to define a minimal one like `MySimpleFactorModel(FactorModelBase): def fit(...): pass # parameters set manually for example`) and populate its attributes with these estimated values.
+        5. Demonstrate `calculate_total_asset_covariance_matrix()`.
+        6. Demonstrate `decompose_alpha()`.
+        7. Demonstrate `rotate_factor_model()` with a simple scalar rotation."
+
+#### D. Unit Testing Strategy
+
+1.  **Identify key functionalities to test:**
+    *   `FactorModelBase.calculate_total_asset_covariance_matrix()`: Correct calculation for a small, known model.
+    *   `decompose_alpha`: Correct decomposition for a known alpha and B.
+    *   `rotate_factor_model`: Check that `B̃ Ω̃_f B̃'` is close to `B Ω_f B'`. Check transformed components.
+    *   `ordinary_least_squares` and `weighted_least_squares`: Correct coefficient estimation for simple synthetic data.
+2.  **Suggest specific test cases (for `tests/test_core_factor_model.py`, `tests/test_factor_models_utils.py`, `tests/test_utils_regression.py`):**
+    *   `test_total_covariance_calculation_2assets_1factor()`: Manually define a simple 2-asset, 1-factor model and verify `Ω_r`.
+    *   `test_alpha_decomposition_simple()`: Provide simple `alpha_total` and `B_loadings` and check outputs.
+    *   `test_model_rotation_invariance()`: Check that `B @ factor_cov @ B.T` is approximately equal before and after rotation (up to numerical precision, for the systematic part).
+    *   `test_ols_known_result()`: Use data where `Y = 2*X1 + 3*X2 + noise`.
+    *   `test_wls_known_result()`: Similar to OLS but with known weights.
+3.  **Specific instructions for AI (for later):** "For the new/enhanced functions and classes:
+    *   Write a test for `FactorModelBase.calculate_total_asset_covariance_matrix` using a manually defined 2-asset, 1-factor model.
+    *   Write a test for `decompose_alpha` with a simple example.
+    *   Write a test for `rotate_factor_model` to check that the systematic risk component `B Ω_f B'` remains (approximately) invariant.
+    *   Write tests for `ordinary_least_squares` and `weighted_least_squares` using synthetic data with known relationships."
+
+#### E. Review & Refinement Notes
+-   The distinction between `FactorModelBase` (an abstract class) and concrete implementations (like Fundamental or Statistical models from later chapters) is important. For Chapter 4 examples, we might need to create a minimal concrete subclass of `FactorModelBase` just to instantiate and test its methods if the `fit` method is truly abstract.
+-   Numerical stability of matrix inversions (`(X'X)⁻¹`, `(B'B)⁻¹`) is crucial. Using `np.linalg.pinv` (pseudo-inverse) or `np.linalg.solve` is generally preferred over direct inversion with `.inv()`.
+-   Ensure Pandas DataFrame/Series indices and columns are handled correctly during matrix operations (alignment).
+-   The SVD and Frisch-Waugh-Lovell theorem are more conceptual tools or advanced utilities for now; direct implementation of these theorems as standalone library functions might be deferred unless a specific need arises in later chapters. OLS/WLS are the immediate practical tools.
 
 ## Phase 3: Integration, Advanced Topics & Refinements
 
