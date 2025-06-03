@@ -1,6 +1,8 @@
 """Utilities for the Elements of Quantitative Investing project."""
 
-from .utils import slugify
+from . import utils
 from . import common_concepts
+from . import returns_analysis
+from . import volatility_models
 
-__all__ = ["slugify", "common_concepts"]
+__all__ = ["utils", "common_concepts", "returns_analysis", "volatility_models"]
