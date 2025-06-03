@@ -38,12 +38,12 @@
 - [ ] Create unit tests in `tests/test_core_factor_model.py`, `tests/test_factor_models_utils.py`, `tests/test_utils_regression.py`
 
 ### Chapter 5: Evaluating Risk
-- [ ] Task B.1: Implement Robust Loss Functions for Volatility
-- [ ] Task B.2: Implement Multivariate Covariance Evaluation Procedures
-- [ ] Task B.3: Implement Ancillary Tests
-- [ ] Task B.4: Update `__init__.py` files
-- [ ] Create example script `examples/chapter_5_risk_evaluation_example.py`
-- [ ] Create unit tests in `tests/test_risk_evaluation.py`
+- [x] Task B.1: Implement Robust Loss Functions for Volatility
+- [x] Task B.2: Implement Multivariate Covariance Evaluation Procedures
+- [x] Task B.3: Implement Ancillary Tests
+- [x] Task B.4: Update `__init__.py` files
+- [x] Create example script `examples/chapter_5_risk_evaluation_example.py`
+- [x] Create unit tests in `tests/test_risk_evaluation.py`
 
 ### Chapter 6: Fundamental Factor Models
 - [x] Task B.1: Implement Winsorization
