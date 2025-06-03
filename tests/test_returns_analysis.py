@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 from pandas.testing import assert_series_equal
 
-from ele_quant.returns_analysis.calculations import (
+from quant_elements_lib.returns_analysis.calculations import (
     calculate_simple_returns,
     calculate_log_returns,
     calculate_dividend_adjusted_returns,
@@ -11,10 +11,10 @@ from ele_quant.returns_analysis.calculations import (
     calculate_compounded_return_series,
     calculate_total_compounded_return,
 )
-from ele_quant.returns_analysis.price_estimation import (
+from quant_elements_lib.returns_analysis.price_estimation import (
     estimate_true_price_roll_model,
 )
-from ele_quant.utils.kalman_filter import KalmanFilter # For Roll Model which uses KF
+from quant_elements_lib.utils.kalman_filter import KalmanFilter # For Roll Model which uses KF
 
 class TestReturnCalculations(unittest.TestCase):
 

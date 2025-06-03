@@ -1,7 +1,7 @@
 import unittest
 import pandas as pd
 import numpy as np
-from ele_quant.returns_analysis import calculate_hedged_returns, calculate_forward_premium
+from quant_elements_lib.returns_analysis import calculate_hedged_returns, calculate_forward_premium
 # from ele_quant.returns_analysis.currency_hedging import calculate_hedged_returns, calculate_forward_premium
 
 class TestCurrencyHedging(unittest.TestCase):
