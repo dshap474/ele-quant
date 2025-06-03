@@ -1,39 +1,39 @@
 ## Phase 1: Foundational Setup & Core Components
-- [ ] **Project Initialization**
-- [ ] **Core Object Skeletons**
-- [ ] **Utility Module (`utils`) Initial Population Plan**
+- [x] **Project Initialization**
+- [x] **Core Object Skeletons**
+- [x] **Utility Module (`utils`) Initial Population Plan**
 
 ## Phase 2: Chapter-by-Chapter Implementation
 ### Chapter 1: The Map and the Territory
-- [ ] Task B.1: Define Enumerations for Financial Concepts
-- [ ] Task B.2: Define a Simple Class for Market Participants (Optional, for structure)
-- [ ] Task B.3: Update `__init__.py` files
+- [x] Task B.1: Define Enumerations for Financial Concepts
+- [x] Task B.2: Define a Simple Class for Market Participants (Optional, for structure)
+- [x] Task B.3: Update `__init__.py` files
 - [ ] Create example script `examples/chapter_1_concepts_example.py`
-- [ ] Create unit tests in `tests/test_common_concepts.py`
+- [x] Create unit tests in `tests/test_common_concepts.py`
 
 ### Chapter 2: Univariate Returns
-- [ ] Task B.1: Implement Basic Return Calculations
-- [ ] Task B.2: Implement Generic Kalman Filter (Appendix 2.4.1)
-- [ ] Task B.3: Implement Roll Model Price Estimation (using Kalman Filter)
-- [ ] Task B.4: Implement GARCH(1,1) Model
-- [ ] Task B.5: Implement Realized Volatility Calculation
-- [ ] Task B.6: Implement EWMA and State-Space Variance Models
-- [ ] Create example script `examples/chapter_2_returns_vol_example.py`
-- [ ] Create unit tests in `tests/test_returns_analysis.py`, `tests/test_volatility_models.py`, `tests/test_utils.py`
+- [x] Task B.1: Implement Basic Return Calculations
+- [x] Task B.2: Implement Generic Kalman Filter (Appendix 2.4.1)
+- [x] Task B.3: Implement Roll Model Price Estimation (using Kalman Filter)
+- [x] Task B.4: Implement GARCH(1,1) Model
+- [x] Task B.5: Implement Realized Volatility Calculation
+- [x] Task B.6: Implement EWMA and State-Space Variance Models
+- [x] Create example script `examples/chapter_2_returns_vol_example.py`
+- [x] Create unit tests in `tests/test_returns_analysis.py`, `tests/test_volatility_models.py`, `tests/test_utils.py`
 
 ### Chapter 3: Interlude: What Is Performance?
-- [ ] Task B.1: Implement Core Performance Metrics
-- [ ] Task B.2: Implement Sharpe Ratio Standard Error and Adjustments
-- [ ] Task B.3: Update `__init__.py` files
-- [ ] Create example script `examples/chapter_3_performance_example.py`
-- [ ] Create unit tests in `tests/test_performance_metrics.py`
+- [x] Task B.1: Implement Core Performance Metrics
+- [x] Task B.2: Implement Sharpe Ratio Standard Error and Adjustments
+- [x] Task B.3: Update `__init__.py` files
+- [x] Create example script `examples/chapter_3_performance_example.py`
+- [x] Create unit tests in `tests/test_performance_metrics.py`
 
 ### Chapter 4: Linear Models of Returns
-- [ ] Task B.1: Enhance `FactorModelBase` Class
+- [x] Task B.1: Enhance `FactorModelBase` Class
 - [ ] Task B.2: Implement Alpha Decomposition
 - [ ] Task B.3: Implement Factor Model Transformations
-- [ ] Task B.4: Implement Basic Linear Regression Utilities (Appendix 4.7.1)
-- [ ] Task B.5: Update `__init__.py` files
+- [x] Task B.4: Implement Basic Linear Regression Utilities (Appendix 4.7.1)
+- [ ] Task B.5: Update `__init__.py` files (core and utils need update for FactorModelBase and regression)
 - [ ] Create example script `examples/chapter_4_linear_models_example.py`
 - [ ] Create unit tests in `tests/test_core_factor_model.py`, `tests/test_factor_models_utils.py`, `tests/test_utils_regression.py`
 
@@ -46,7 +46,7 @@
 - [ ] Create unit tests in `tests/test_risk_evaluation.py`
 
 ### Chapter 6: Fundamental Factor Models
-- [ ] Task B.1: Implement Winsorization
+- [x] Task B.1: Implement Winsorization
 - [ ] Task B.2: Create `FundamentalFactorModel` Class Structure
 - [ ] Task B.3: Implement Cross-Sectional Regression Step for `FundamentalFactorModel.fit`
 - [ ] Task B.4: Implement Factor Covariance (`Ω_f`) Estimation for `FundamentalFactorModel.fit`
@@ -60,8 +60,8 @@
 - [ ] Task B.1: Create `StatisticalFactorModel` Class Structure
 - [ ] Task B.2: Implement PCA-based Factor Estimation for `StatisticalFactorModel.fit`
 - [ ] Task B.3: Implement Probabilistic PCA (PPCA) Estimation for `StatisticalFactorModel.fit`
-- [ ] Task B.4: Implement Eigenvalue Shrinkage Utilities and Number of Factors Selection
-- [ ] Task B.5: Implement Eigenvector Alignment (Turnover Control)
+- [ ] Task B.4: Implement Eigenvalue Shrinkage Utilities and Number of Factors Selection (Partially Done - Shrinkage exists, Num Factors missing)
+- [x] Task B.5: Implement Eigenvector Alignment (Turnover Control)
 - [ ] Task B.6: Update `__init__.py` files.
 - [ ] Create example script `examples/chapter_7_statistical_model_example.py`
 - [ ] Create unit tests in `tests/test_factor_models_statistical.py`, `tests/test_utils_matrix_ops.py`
@@ -79,7 +79,7 @@
 - [ ] Task B.3: Implement Logic for Adding a New Factor (Procedure 9.1)
 - [ ] Task B.4: Implement Factor-Neutral MVO
 - [ ] Task B.5: Implement Fundamental Law Calculation
-- [ ] Task B.6: Implement Matrix Utility Lemmas
+- [x] Task B.6: Implement Matrix Utility Lemmas
 - [ ] Task B.7: Update `__init__.py` files.
 - [ ] Create example script `examples/chapter_9_mvo_basics_example.py`
 - [ ] Create unit tests in `tests/test_portfolio_optimization.py`, `tests/test_factor_models_fmp.py`, `tests/test_utils_linalg.py`
@@ -130,6 +130,6 @@
 - [ ] **Advanced Feature Implementation (Iterative Backlog):**
 - [ ] **API Review and Refinement:**
 - [ ] **Documentation Generation:**
-- [ ] **Packaging and Distribution (Poetry):**
+- [x] **Packaging and Distribution (Poetry):**
 - [ ] **Performance Optimization (If Necessary):**
 - [ ] **Comprehensive Testing:**
