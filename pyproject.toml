@@ -12,6 +12,9 @@ scipy = "*"
 pandas = "*"
 matplotlib = "*"
 statsmodels = "*"
+cvxpy = "*"
+yfinance = "*"
+scikit-learn = "*"
 
 [tool.poetry.dev-dependencies]
 pytest = "*"
