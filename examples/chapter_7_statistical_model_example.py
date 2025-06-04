@@ -2,186 +2,200 @@ import pandas as pd
 import numpy as np
 import yfinance as yf
 import matplotlib.pyplot as plt
-from quant_elements_lib.factor_models import StatisticalFactorModel, choose_num_factors_threshold
+
+from quant_elements_lib.factor_models import StatisticalFactorModel
+from quant_elements_lib.factor_models.utils import choose_num_factors_threshold
+# from quant_elements_lib.utils import shrink_eigenvalues_spiked_model # Optional import
 
 def run_chapter_7_example():
-    """
-    Demonstrates the use of StatisticalFactorModel (PCA method) from Chapter 7.
-    """
-    # 1. Data fetching and preparation
-    # Using a smaller list for quicker example, ideally 30-50 for PCA
+    print("Running Chapter 7: Statistical Factor Models Example\n")
+
+    # 1. Data Fetching and Preparation
     tickers = [
-        "AAPL", "MSFT", "GOOGL", "AMZN", "NVDA", "TSLA", "BRK-B", "JPM", "JNJ", "V",
-        "PG", "UNH", "HD", "MA", "BAC", "DIS", "ADBE", "CRM", "NFLX", "PFE"
+        'AAPL', 'MSFT', 'GOOGL', 'AMZN', 'NVDA', 'TSLA', 'BRK-B', 'JPM', 'JNJ', 'V',
+        'PG', 'UNH', 'HD', 'MA', 'BAC', 'DIS', 'ADBE', 'CRM', 'NFLX', 'XOM',
+        'CVX', 'PFE', 'MRK', 'KO', 'PEP', 'WMT', 'MCD', 'COST', 'INTC', 'CSCO'
+        # Add more or use a broad index component list if feasible
     ]
-    # Reduce for CI/testing speed if necessary:
-    # tickers = ["AAPL", "MSFT", "GOOGL", "AMZN", "NVDA"]
+    # Reduce list for faster example run in CI/testing if needed
+    # tickers = tickers[:15]
 
-    print(f"Fetching data for {len(tickers)} tickers...")
+    start_date = '2020-01-01'
+    end_date = '2023-12-31'
+
+    print(f"Fetching data for {len(tickers)} tickers from {start_date} to {end_date}...")
     try:
-        data = yf.download(tickers, start="2020-01-01", end="2022-12-31", progress=False, timeout=10)
-        if data.empty or data['Adj Close'].isnull().all().all():
-            print("Failed to download valid data with yfinance (empty or all NaNs).")
-            data = None # Explicitly set to None to trigger fallback
-        else:
-            # Check for partial data (e.g. some tickers failed)
-            adj_close_check = data['Adj Close'].dropna(axis=1, how='all')
-            if adj_close_check.shape[1] < 2 : # Need at least 2 assets
-                 print(f"Downloaded data for only {adj_close_check.shape[1]} assets. Insufficient.")
-                 data = None
+        data = yf.download(tickers, start=start_date, end=end_date, progress=False)['Adj Close']
+        if data.empty:
+            # This case might happen if yf.download returns an empty DataFrame but no exception
+            # e.g. for very specific ticker lists or network issues not caught by yf's internal retries.
+            raise ValueError("No data returned from yfinance. Check tickers or date range.")
     except Exception as e:
-        print(f"Exception during yfinance download: {e}")
-        data = None # Trigger fallback
+        print(f"Error fetching data with yfinance: {e}")
+        # Fallback for environments where yfinance might fail (e.g. no internet)
+        # Create dummy data for N assets, T observations
+        T_obs_dummy, N_assets_dummy = 252*3, len(tickers) # Approx 3 years
+        dummy_returns_np = np.random.randn(T_obs_dummy, N_assets_dummy) * 0.01 # Daily returns ~ N(0, 0.01^2)
+        # Create price series from returns
+        dummy_prices = np.exp(np.cumsum(dummy_returns_np, axis=0)) * 100 # Start price 100
+        data = pd.DataFrame(dummy_prices,
+                            index=pd.date_range(start_date, periods=T_obs_dummy, freq='B'),
+                            columns=tickers) # Ensure columns match original ticker list
+        print("Using dummy data as yfinance fallback.")
 
-    if data is None:
-        print("Using dummy data for demonstration as yfinance failed or returned insufficient data.")
-        num_assets = len(tickers)
-        num_periods = 252 * 3 # Approx 3 years
-        np.random.seed(42)
-        log_returns = pd.DataFrame(
-            np.random.randn(num_periods, num_assets) * 0.01,
-            index=pd.date_range(start="2020-01-01", periods=num_periods, freq='B'),
-            columns=tickers
+
+    if data.empty:
+        print("No data fetched or generated. Exiting.")
+        return
+
+    # Drop columns (assets) that have no price data at all (e.g. yf returns NaNs for a ticker)
+    data = data.dropna(axis=1, how='all')
+    # Forward fill and then backfill to handle missing values for individual assets
+    data = data.ffill().bfill()
+    # Drop again if any asset is still all NaN (e.g. if it had no data from yf to begin with and ffill/bfill couldn't help)
+    data = data.dropna(axis=1, how='all')
+
+    if data.shape[1] == 0:
+        print("No valid asset data remaining after cleaning. Exiting.")
+        return
+
+    final_tickers = data.columns.tolist()
+    print(f"Using data for {len(final_tickers)} assets.")
+
+    log_returns = np.log(data / data.shift(1)).dropna() # T x N
+
+    if log_returns.empty or log_returns.shape[0] < 2 or log_returns.shape[1] < 2:
+        print("Not enough data points or assets after processing for a meaningful model. Exiting example.")
+        return
+
+    # 2. Determine Number of Factors
+    returns_demeaned_for_eig = log_returns - log_returns.mean(axis=0)
+    T_obs, N_assets = returns_demeaned_for_eig.shape
+
+    sample_eigenvalues = np.array([1.0]) # Default dummy in case all calcs fail
+    if T_obs <= 1: # Should be caught by log_returns.shape[0] < 2 earlier
+        print("Not enough observations (T<=1) to calculate eigenvalues reliably. Using dummy eigenvalues.")
+        sample_eigenvalues = np.sort(np.random.rand(max(1,N_assets)) * max(1,N_assets))[::-1] + 0.1
+    elif T_obs <= N_assets :
+        try:
+            # SVD on R_demeaned (T x N = U S Vh)
+            # Eigenvalues of (1/(T-1)) * R_demeaned.T @ R_demeaned are s**2 / (T-1)
+            _, s_vals, _ = np.linalg.svd(returns_demeaned_for_eig.values, full_matrices=False)
+            sample_eigenvalues = (s_vals**2) / (T_obs - 1)
+        except np.linalg.LinAlgError as e:
+            print(f"SVD failed for eigenvalue calculation: {e}. Using dummy eigenvalues.")
+            sample_eigenvalues = np.sort(np.random.rand(N_assets) * N_assets)[::-1] + 0.1
+    else: # T > N
+        try:
+            sample_cov_matrix = np.cov(returns_demeaned_for_eig.values, rowvar=False, ddof=1)
+            sample_eigenvalues = np.linalg.eigvalsh(sample_cov_matrix)
+            sample_eigenvalues = np.sort(sample_eigenvalues)[::-1]
+        except np.linalg.LinAlgError as e:
+            print(f"Eigendecomposition failed: {e}. Using dummy eigenvalues.")
+            sample_eigenvalues = np.sort(np.random.rand(N_assets) * N_assets)[::-1] + 0.1
+
+    print(f"\nTop 5 sample eigenvalues: {sample_eigenvalues[:5]}")
+
+    if N_assets <=1 :
+        num_factors_selected = N_assets # 1 if N_assets=1, 0 if N_assets=0
+    else:
+        num_factors_selected = choose_num_factors_threshold(sample_eigenvalues, N_assets, T_obs)
+
+    # Cap number of factors for practical example
+    if N_assets > 1:
+        # Ensure num_factors < N_assets for some model properties (esp. PPCA later)
+        # Also cap at a reasonable number like 10 for example display
+        num_factors_selected = min(num_factors_selected, N_assets - 1, 10)
+    elif N_assets == 1:
+        num_factors_selected = 1
+
+    if num_factors_selected == 0 and N_assets > 0 :
+        num_factors_selected = 1 # Default to 1 factor if assets exist but threshold gave 0
+
+    print(f"Selected number of factors using threshold method (capped): {num_factors_selected}")
+
+    # 3. Fit Statistical Factor Model (PCA)
+    if num_factors_selected > 0:
+        print("\nFitting StatisticalFactorModel using PCA...")
+        statistical_model_pca = StatisticalFactorModel(
+            asset_universe=final_tickers,
+            num_factors_to_extract=num_factors_selected
         )
-        # Ensure tickers variable matches the columns of log_returns
-        tickers = log_returns.columns.tolist()
-
+        try:
+            statistical_model_pca.fit(log_returns, estimation_method='PCA')
+            print("PCA Model fitting complete.")
+            print("\nPCA Model - Alpha (Mean Returns):")
+            print(statistical_model_pca.alpha.head())
+            print("\nPCA Model - Factor Loadings (B_loadings) - First 5 assets, all factors:")
+            print(statistical_model_pca.B_loadings.head(5))
+            print("\nPCA Model - Factor Returns (first 5 periods, all factors):")
+            print(statistical_model_pca.factor_returns.head(5))
+            print("\nPCA Model - Factor Covariance Matrix:")
+            print(statistical_model_pca.factor_covariance)
+            print("\nPCA Model - Idiosyncratic Covariance (Variances - first 5 assets):")
+            print(statistical_model_pca.idiosyncratic_covariance.head(5))
+        except Exception as e:
+            print(f"Error fitting PCA model or accessing attributes: {e}")
     else:
-        adj_close = data['Adj Close'].dropna(axis=1, how='all') # Drop columns that are all NaN
-        adj_close = adj_close.dropna(axis=0) # Drop rows with any NaN from remaining assets
+        print("Skipping PCA model fitting as num_factors_selected is 0.")
 
-        valid_tickers = adj_close.columns.tolist()
-        if len(valid_tickers) < 2: # Need at least 2 assets for PCA
-             print(f"Not enough valid ticker data after cleaning (found {len(valid_tickers)}). Using dummy data.")
-             num_assets = len(tickers) if len(tickers) >=2 else 2
-             original_tickers = tickers # save original list for dummy data columns
-             num_periods = 252 * 3
-             np.random.seed(42)
-             log_returns = pd.DataFrame(
-                 np.random.randn(num_periods, num_assets) * 0.01,
-                 index=pd.date_range(start="2020-01-01", periods=num_periods, freq='B'),
-                 columns=original_tickers[:num_assets] # Use original tickers for consistency
-             )
-             tickers = log_returns.columns.tolist() # Update tickers to actual columns used
-        else:
-            log_returns = np.log(adj_close / adj_close.shift(1)).dropna()
-            tickers = valid_tickers # Update tickers list to only include those with valid data
-
-    print(f"Using data for {len(tickers)} tickers for PCA: {tickers}")
-    print(f"Log returns shape: {log_returns.shape}")
-
-    if log_returns.shape[0] < 5 or log_returns.shape[1] < 2: # Min T, Min N
-        print("Not enough data points or assets for a meaningful PCA. Exiting example.")
-        return
-
-    # 2. Demean returns (StatisticalFactorModel will also do this, but good for direct calcs)
-    returns_demeaned_for_scree = log_returns - log_returns.mean(axis=0)
-
-    # 3. Determine number of factors
-    # Using .values to ensure it's a numpy array for np.linalg.eigh
-    sample_cov_matrix = returns_demeaned_for_scree.cov().values
-    eigenvalues, _ = np.linalg.eigh(sample_cov_matrix)
-    sorted_eigenvalues = np.sort(eigenvalues)[::-1] # Descending
-
-    N_assets = log_returns.shape[1]
-    T_observations = log_returns.shape[0]
-
-    num_factors_chosen_threshold = 0
-    if T_observations > 0: # Avoid division by zero for gamma
-        num_factors_chosen_threshold = choose_num_factors_threshold(sorted_eigenvalues, N_assets, T_observations)
-
-    # For stability in example, let's cap it or pick a fixed small number
-    num_factors = min(max(1, num_factors_chosen_threshold), 10)
-
-    # Ensure K < N for PCA/Statistical models
-    if N_assets <= num_factors :
-        num_factors = max(1, N_assets -1) # K must be less than N
-
-    if num_factors == 0 and N_assets > 0: # Ensure at least one factor if possible
-        num_factors = 1
-
-    if N_assets == 0: # No assets, no factors.
-        print("No assets to process after data loading/cleaning. Exiting.")
-        return
-    if num_factors == 0 and N_assets > 0: # If somehow num_factors became 0 with assets present
-        print("Warning: num_factors is 0, but assets are present. Setting to 1.")
-        num_factors = 1
-
-
-    print(f"Eigenvalues from sample covariance (top 15): {sorted_eigenvalues[:min(15, len(sorted_eigenvalues))]}")
-    print(f"Number of factors suggested by threshold rule: {num_factors_chosen_threshold}")
-    print(f"Number of factors chosen for the model: {num_factors}")
-
-    # 4. Instantiate and fit StatisticalFactorModel using PCA
-    # asset_universe list must match columns of returns_data
-    stat_model = StatisticalFactorModel(asset_universe=list(log_returns.columns), num_factors_to_extract=num_factors)
-
-    print("\nFitting StatisticalFactorModel using PCA...")
-    stat_model.fit(returns_data=log_returns, estimation_method='PCA')
-    print("Model fitting complete.")
-
-    # 5. Print key attributes of the fitted model
-    print("\n--- Fitted Statistical Factor Model (PCA) ---")
-    if stat_model.alpha is not None:
-        print("\nAlpha (first 5 assets):")
-        print(stat_model.alpha.head())
-    else:
-        print("\nAlpha: Not computed or None")
-
-    if stat_model.B_loadings is not None:
-        print("\nB_loadings (Factor Loadings - first 5 assets, first min(3, num_factors) factors):")
-        print(stat_model.B_loadings.iloc[:5, :min(3, num_factors)])
-    else:
-        print("\nB_loadings: Not computed or None")
-
-    if stat_model.factor_returns is not None:
-        print("\nFactor Returns (first 5 periods, first min(3, num_factors) factors):")
-        print(stat_model.factor_returns.iloc[:5, :min(3, num_factors)])
-    else:
-        print("\nFactor Returns: Not computed or None")
-
-    if stat_model.factor_covariance is not None:
-        print("\nFactor Covariance (first min(3, num_factors) x min(3, num_factors) factors):")
-        print(stat_model.factor_covariance.iloc[:min(3, num_factors), :min(3, num_factors)])
-    else:
-        print("\nFactor Covariance: Not computed or None")
-
-    if stat_model.idiosyncratic_covariance is not None:
-        print("\nIdiosyncratic Variances (first 5 assets):")
-        print(stat_model.idiosyncratic_covariance.head())
-    else:
-        print("\nIdiosyncratic Covariance: Not computed or None")
-
-    # 6. Plot Scree Plot
-    if len(sorted_eigenvalues) > 0 and T_observations > 0: # Ensure there are eigenvalues to plot
+    # 4. Scree Plot
+    if N_assets > 0 and T_obs > 1 and len(sample_eigenvalues) > 0 and sample_eigenvalues[0] != 1.0: # Avoid plotting dummy
         plt.figure(figsize=(10, 6))
-        plt.plot(range(1, len(sorted_eigenvalues) + 1), sorted_eigenvalues, 'o-')
-        plt.title('Scree Plot of Eigenvalues (Sample Covariance Matrix)')
-        plt.xlabel('Principal Component Number')
+        plt.plot(range(1, len(sample_eigenvalues) + 1), sample_eigenvalues, 'o-', label='Eigenvalues')
+        plt.title('Scree Plot of Eigenvalues (from Sample Covariance of Demeaned Returns)')
+        plt.xlabel('Rank')
         plt.ylabel('Eigenvalue')
 
-        threshold_val = 1 + np.sqrt(N_assets / T_observations) if T_observations > 0 else np.inf
-        plt.axhline(y=threshold_val, color='r', linestyle='--',
-                    label=f'Threshold (1 + sqrt(N/T)) = {threshold_val:.2f}')
-        if num_factors > 0:
-            plt.axvline(x=num_factors, color='g', linestyle='--',
-                        label=f'Num Factors Chosen = {num_factors}')
-        plt.legend()
-        plt.grid(True)
+        if N_assets > 0 and T_obs > 0: # Check to avoid division by zero if T_obs became 0
+            threshold_val = 1 + np.sqrt(N_assets / T_obs)
+            plt.axhline(threshold_val, color='r', linestyle='--',
+                        label=f'Threshold (1 + sqrt(N/T)) = {threshold_val:.2f}')
+        if num_factors_selected > 0:
+             plt.axvline(num_factors_selected, color='g', linestyle='--',
+                        label=f'Selected Factors = {num_factors_selected}')
 
+        plt.legend()
+        plt.yscale('log')
+        plt.grid(True)
+        plt.tight_layout()
         plot_filename = "chapter_7_scree_plot.png"
         try:
             plt.savefig(plot_filename)
             print(f"\nScree plot saved to {plot_filename}")
         except Exception as e:
-            print(f"\nCould not save scree plot: {e}. Attempting to display if possible.")
-            try:
-                plt.show()
-            except Exception as display_e:
-                print(f"Could not display scree plot: {display_e}")
+            print(f"Error saving scree plot: {e}")
+        plt.close()
     else:
-        print("\nScree plot not generated due to lack of eigenvalues or T_observations=0.")
+        print("\nSkipping scree plot due to insufficient/dummy data for meaningful plot.")
 
+    # (Optional) Demonstrate PPCA
+    if N_assets > 1 :
+        print("\nFitting StatisticalFactorModel using PPCA (optional demo)...")
+        # For PPCA, num_factors must be < N_assets.
+        num_factors_ppca = min(5, N_assets - 1)
+        if num_factors_ppca <= 0 : # Ensure at least 1 factor for PPCA if N_assets > 1
+             num_factors_ppca = 1
+
+        statistical_model_ppca = StatisticalFactorModel(
+            asset_universe=final_tickers,
+            num_factors_to_extract=num_factors_ppca
+        )
+        try:
+            statistical_model_ppca.fit(log_returns, estimation_method='PPCA')
+            print("PPCA Model fitting complete.")
+            print("\nPPCA Model - Factor Loadings (B_loadings) - First 5 assets, all factors:")
+            print(statistical_model_ppca.B_loadings.head(5))
+            print("\nPPCA Model - Factor Covariance Matrix:")
+            print(statistical_model_ppca.factor_covariance)
+            print("\nPPCA Model - Idiosyncratic Covariance (Constant Variance):")
+            print(statistical_model_ppca.idiosyncratic_covariance.head(5))
+        except Exception as e:
+            print(f"Error fitting PPCA model or accessing attributes: {e}")
+    else:
+        print("\nSkipping PPCA example as N_assets <= 1 (PPCA requires num_factors < N_assets).")
+
+    print("\nChapter 7 Example Complete.")
 
 if __name__ == "__main__":
     run_chapter_7_example()
